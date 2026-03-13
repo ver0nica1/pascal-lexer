@@ -21,8 +21,8 @@ tokens = (
 
     # Literales
 
-    'NUMBER',       # Enteros y reales: 123, 3.14, 2e10
-    'CHARCONST',    # String entre comillas simples o dobles: 'a'  "hello"
+    'NUMBER',
+    'CHARCONST',
 
     # Identificador
 
@@ -30,29 +30,27 @@ tokens = (
 
     # Operadores y símbolos
 
-    'PLUS',         # +
-    'MINUS',        # -
-    'TIMES',        # *
-    'DIVISION',     # /
-    'EQ',           # =
-    'NE',           # <>
-    'LT',           # <
-    'GT',           # >
-    'LE',           # <=
-    'GE',           # >=
-    'ASSIGN',       # :=
-    'RANGE',        # ..
-    'DOT',          # .
-    'COMMA',        # ,
-    'SEMICOLON',    # ;
-    'COLON',        # :
-    'LPAR',         # (
-    'RPAR',         # )
-    'LBR',          # [
-    'RBR',          # ]
+    'PLUS',
+    'MINUS',
+    'TIMES',
+    'DIVISION',
+    'EQ',
+    'NE',
+    'LT',
+    'GT',
+    'LE',
+    'GE',
+    'ASSIGN',
+    'RANGE',
+    'DOT',
+    'COMMA',
+    'SEMICOLON',
+    'COLON',
+    'LPAR',
+    'RPAR',
+    'LBR',
+    'RBR'
 )
-
-# Palabras reservadas: una función por cada keyword, con el mismo nombre que el token
 
 t_PLUS      = r'\+'
 t_MINUS     = r'\-'
@@ -73,163 +71,163 @@ t_RBR       = r'\]'
 # Palabras reservadas
 
 def t_PROCEDURE(t):
-    r'[pP][rR][oO][cC][eE][dD][uU][rR][eE]'
+    r'[pP][rR][oO][cC][eE][dD][uU][rR][eE]\b'
     return t
 
 def t_FUNCTION(t):
-    r'[fF][uU][nN][cC][tT][iI][oO][nN]'
+    r'[fF][uU][nN][cC][tT][iI][oO][nN]\b'
     return t
 
 def t_BOOLEAN(t):
-    r'[bB][oO][oO][lL][eE][aA][nN]'
+    r'[bB][oO][oO][lL][eE][aA][nN]\b'
     return t
 
 def t_INTEGER(t):
-    r'[iI][nN][tT][eE][gG][eE][rR]'
+    r'[iI][nN][tT][eE][gG][eE][rR]\b'
     return t
 
 def t_PROGRAM(t):
-    r'[pP][rR][oO][gG][rR][aA][mM]'
+    r'[pP][rR][oO][gG][rR][aA][mM]\b'
     return t
 
 def t_DOWNTO(t):
-    r'[dD][oO][wW][nN][tT][oO]'
+    r'[dD][oO][wW][nN][tT][oO]\b'
     return t
 
 def t_PACKED(t):
-    r'[pP][aA][cC][kK][eE][dD]'
+    r'[pP][aA][cC][kK][eE][dD]\b'
     return t
 
 def t_RECORD(t):
-    r'[rR][eE][cC][oO][rR][dD]'
+    r'[rR][eE][cC][oO][rR][dD]\b'
     return t
 
 def t_REPEAT(t):
-    r'[rR][eE][pP][eE][aA][tT]'
+    r'[rR][eE][pP][eE][aA][tT]\b'
     return t
 
 def t_STRING(t):
-    r'[sS][tT][rR][iI][nN][gG]'
+    r'[sS][tT][rR][iI][nN][gG]\b'
     return t
 
 def t_ARRAY(t):
-    r'[aA][rR][rR][aA][yY]'
+    r'[aA][rR][rR][aA][yY]\b'
     return t
 
 def t_BEGIN(t):
-    r'[bB][eE][gG][iI][nN]'
+    r'[bB][eE][gG][iI][nN]\b'
     return t
 
 def t_CONST(t):
-    r'[cC][oO][nN][sS][tT]'
+    r'[cC][oO][nN][sS][tT]\b'
     return t
 
 def t_LABEL(t):
-    r'[lL][aA][bB][eE][lL]'
+    r'[lL][aA][bB][eE][lL]\b'
     return t
 
 def t_UNTIL(t):
-    r'[uU][nN][tT][iI][lL]'
+    r'[uU][nN][tT][iI][lL]\b'
     return t
 
 def t_WHILE(t):
-    r'[wW][hH][iI][lL][eE]'
+    r'[wW][hH][iI][lL][eE]\b'
     return t
 
 def t_CASE(t):
-    r'[cC][aA][sS][eE]'
+    r'[cC][aA][sS][eE]\b'
     return t
 
 def t_CHAR(t):
-    r'[cC][hH][aA][rR]'
+    r'[cC][hH][aA][rR]\b'
     return t
 
 def t_ELSE(t):
-    r'[eE][lL][sS][eE]'
+    r'[eE][lL][sS][eE]\b'
     return t
 
 def t_FILE(t):
-    r'[fF][iI][lL][eE]'
+    r'[fF][iI][lL][eE]\b'
     return t
 
 def t_GOTO(t):
-    r'[gG][oO][tT][oO]'
+    r'[gG][oO][tT][oO]\b'
     return t
 
 def t_REAL(t):
-    r'[rR][eE][aA][lL]'
+    r'[rR][eE][aA][lL]\b'
     return t
 
 def t_THEN(t):
-    r'[tT][hH][eE][nN]'
+    r'[tT][hH][eE][nN]\b'
     return t
 
 def t_TYPE(t):
-    r'[tT][yY][pP][eE]'
+    r'[tT][yY][pP][eE]\b'
     return t
 
 def t_WITH(t):
-    r'[wW][iI][tT][hH]'
+    r'[wW][iI][tT][hH]\b'
     return t
 
 def t_AND(t):
-    r'[aA][nN][dD]'
+    r'[aA][nN][dD]\b'
     return t
 
 def t_DIV(t):
-    r'[dD][iI][vV]'
+    r'[dD][iI][vV]\b'
     return t
 
 def t_END(t):
-    r'[eE][nN][dD]'
+    r'[eE][nN][dD]\b'
     return t
 
 def t_FOR(t):
-    r'[fF][oO][rR]'
+    r'[fF][oO][rR]\b'
     return t
 
 def t_MOD(t):
-    r'[mM][oO][dD]'
+    r'[mM][oO][dD]\b'
     return t
 
 def t_NIL(t):
-    r'[nN][iI][lL]'
+    r'[nN][iI][lL]\b'
     return t
 
 def t_NOT(t):
-    r'[nN][oO][tT]'
+    r'[nN][oO][tT]\b'
     return t
 
 def t_SET(t):
-    r'[sS][eE][tT]'
+    r'[sS][eE][tT]\b'
     return t
 
 def t_VAR(t):
-    r'[vV][aA][rR]'
+    r'[vV][aA][rR]\b'
     return t
 
 def t_DO(t):
-    r'[dD][oO]'
+    r'[dD][oO]\b'
     return t
 
 def t_IF(t):
-    r'[iI][fF]'
+    r'[iI][fF]\b'
     return t
 
 def t_IN(t):
-    r'[iI][nN]'
+    r'[iI][nN]\b'
     return t
 
 def t_OF(t):
-    r'[oO][fF]'
+    r'[oO][fF]\b'
     return t
 
 def t_OR(t):
-    r'[oO][rR]'
+    r'[oO][rR]\b'
     return t
 
 def t_TO(t):
-    r'[tT][oO]'
+    r'[tT][oO]\b'
     return t
 
 # Literales
