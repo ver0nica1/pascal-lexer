@@ -1,141 +1,46 @@
-program prueba_completa;
+PROGRAM Factorial;                    { MAYUSCULAS }
 
-{ Este es un comentario con llaves }
-(* Este es un comentario con parentesis y asterisco *)
+Var                                   { Mixta }
+  n        : INTEGER;                 { MAYUSCULAS }
+  resultado: integer;                 { minusculas }
+  i        : Integer;                 { Mixta }
+  mensaje  : STRING;                  { MAYUSCULAS }
 
-const
-    MAX = 100;
-    PI  = 3.14159;
-    MENSAJE = 'Hola Mundo';
+(* Funcion que calcula el factorial de un numero *)
 
-type
-    rango = array[1..10] of integer;
+FUNCTION calcFactorial(num: integer): INTEGER;   
+Var
+  acum: integer;
+  j   : integer;
+Begin                                 { Mixta }
+  acum := 1;
+  j    := 1;
+  WHILE j <= num DO                   { MAYUSCULAS }
+  begin                               { minusculas }
+    acum := acum * j;
+    j    := j + 1;
+  end;
+  calcFactorial := acum; 
+EnD;                                  { Mixta }
 
-var
-    x, y    : integer;
-    z       : real;
-    bandera : boolean;
-    letra   : char;
-    nombre  : string;
-    lista   : array[1..MAX] of integer;
+BEGIN                                 { MAYUSCULAS }
+  n := 5;
 
-{ ------ PROCEDIMIENTO ------ }
-procedure sumar(a, b : integer);
-var
-    resultado : integer;
-begin
-    resultado := a + b
-end;
-
-{ ------ FUNCION ------ }
-function multiplicar(a, b : integer) : integer;
-begin
-    multiplicar := a * b
-end;
-
-{ ------ PROGRAMA PRINCIPAL ------ }
-begin
-
-    { Asignaciones basicas }
-    x := 10;
-    y := 3;
-    z := 2.5;
-    bandera := true;
-    letra   := 'A';
-    nombre  := 'Pascal';
-
-    { Operadores aritmeticos }
-    x := x + y;
-    x := x - y;
-    x := x * y;
-    z := z / 2.0;
-    x := x div y;
-    x := x mod y;
-
-    { Operadores relacionales }
-    if x = y then
-        bandera := true
+  IF n < 0 then                       { Mixta: IF MAYUSCULAS, then minusculas }
+  begin
+    mensaje := 'Numero negativo';     { comillas simples }
+  end
+  ELSE IF n = 0 then
+  Begin                               { Mixta }
+    mensaje := "Factorial es 1";      { comillas dobles }
+  End
+  else                                { minusculas }
+  begin
+    resultado := calcFactorial(n);
+    IF resultado > 100 then
+      mensaje := 'Numero grande'
     else
-        bandera := false;
+      mensaje := 'Numero chico';
+  end;
 
-    if x <> y then
-        x := x + 1;
-
-    if x < y then
-        x := 0;
-
-    if x > y then
-        x := 1;
-
-    if x <= y then
-        x := 2;
-
-    if x >= y then
-        x := 3;
-
-    { Operadores logicos }
-    if (x > 0) and (y > 0) then
-        bandera := true;
-
-    if (x = 0) or (y = 0) then
-        bandera := false;
-
-    if not bandera then
-        x := 99;
-
-    { Estructura WHILE }
-    while x > 0 do
-    begin
-        x := x - 1
-    end;
-
-    { Estructura FOR }
-    for x := 1 to 10 do
-    begin
-        lista[x] := x * 2
-    end;
-
-    { FOR con DOWNTO }
-    for x := 10 downto 1 do
-    begin
-        lista[x] := 0
-    end;
-
-    { Estructura REPEAT UNTIL }
-    repeat
-        x := x + 1
-    until x = 10;
-
-    { Estructura CASE }
-    case x of
-        1 : y := 10;
-        2 : y := 20;
-        3 : y := 30
-    end;
-
-    { Llamadas a subprogramas }
-    sumar(3, 5);
-    y := multiplicar(4, 6);
-
-    { Uso de NIL y punteros basicos }
-    if nombre = nil then
-        x := 0;
-
-    { Uso de IN y SET }
-    if x in [1, 2, 3] then
-        y := 1;
-
-    { Uso de WITH y RECORD }
-    { (sintaxis referencial, no ejecutable sin definicion de record) }
-
-    { Numeros reales y notacion cientifica }
-    z := 1.5e10;
-    z := 3.0e-5;
-
-    { GOTO y LABEL }
-    label salida;
-    goto salida;
-    salida:
-        x := 0
-
-end.
+eNd.                                  { Mixta con punto final }
