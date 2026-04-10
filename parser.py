@@ -460,12 +460,6 @@ def p_variable_field(p):
 
 # ==============================================================
 #   EXPRESIONES
-#   Jerarquía de precedencia (de menor a mayor):
-#     expression       →  simple_expression (con operadores relacionales)
-#     simple_expression →  term  (con + - or)
-#     term             →  factor (con * / div mod and)
-#     factor           →  literal, variable, llamada, (expr), not factor,
-#                         nil, set constructor, in
 # ==============================================================
 
 def p_expression_relop(p):
@@ -643,8 +637,6 @@ def p_error(p):
 #   CONSTRUCCIÓN DEL PARSER
 # ==============================================================
 
-# El conflicto shift/reduce en if_stmt es el "dangling else" clásico.
-# PLY lo resuelve correctamente con shift (else va al if más cercano).
 parser = yacc.yacc()
 
 if __name__ == '__main__':
