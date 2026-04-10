@@ -234,7 +234,7 @@ def t_TO(t):
 # Literales
 
 def t_CHARCONST(t):
-    r'\'[^\']*\'|"[^"]*"'
+    r"'([^'\n]|'')*'"
     return t
 
 def t_NUMBER(t):
