@@ -3,7 +3,73 @@ from lexer import tokens
 import lexer as pascal_lexer
 import sys
 
+# VERBOSE = 1  →  muestra errores en tiempo real + reporte final
+# VERBOSE = 0  →  modo silencioso (lanza excepción en el primer error)
 VERBOSE = 1
+
+# ==============================================================
+#   REGISTRO DE ERRORES
+# ==============================================================
+
+errores = []   # lista de strings, uno por error
+
+def imprimir_reporte():
+    print("\n" + "─" * 55)
+    if not errores:
+        print("  ✓  Análisis completado — 0 errores.")
+    else:
+        print(f"  ✗  Análisis completado — {len(errores)} error(es):\n")
+        for msg in errores:
+            print(f"  {msg}")
+    print("─" * 55)
+
+# ==============================================================
+#   NOMBRES LEGIBLES PARA LOS TOKENS
+# ==============================================================
+
+_NOMBRES = {
+    'SEMICOLON': "';'",    'COLON'    : "':'",     'DOT'      : "'.'",
+    'ASSIGN'   : "':='",   'COMMA'    : "','",     'LPAR'     : "'('",
+    'RPAR'     : "')'",    'LBR'      : "'['",     'RBR'      : "']'",
+    'EQ'       : "'='",    'NE'       : "'<>'",    'LT'       : "'<'",
+    'GT'       : "'>'",    'LE'       : "'<='",    'GE'       : "'>='",
+    'PLUS'     : "'+'",    'MINUS'    : "'-'",     'TIMES'    : "'*'",
+    'DIVISION' : "'/'",    'RANGE'    : "'..'",
+    'BEGIN'    : "'begin'", 'END'     : "'end'",   'IF'       : "'if'",
+    'THEN'     : "'then'", 'ELSE'     : "'else'",  'WHILE'    : "'while'",
+    'DO'       : "'do'",   'FOR'      : "'for'",   'TO'       : "'to'",
+    'DOWNTO'   : "'downto'", 'REPEAT' : "'repeat'", 'UNTIL'   : "'until'",
+    'CASE'     : "'case'", 'OF'       : "'of'",    'GOTO'     : "'goto'",
+    'WITH'     : "'with'", 'IN'       : "'in'",    'NOT'      : "'not'",
+    'AND'      : "'and'",  'OR'       : "'or'",    'DIV'      : "'div'",
+    'MOD'      : "'mod'",  'NIL'      : "'nil'",
+    'PROGRAM'  : "'program'", 'VAR'   : "'var'",   'CONST'    : "'const'",
+    'TYPE'     : "'type'", 'LABEL'    : "'label'", 'FUNCTION' : "'function'",
+    'PROCEDURE': "'procedure'", 'ARRAY': "'array'", 'RECORD'  : "'record'",
+    'SET'      : "'set'",  'FILE'     : "'file'",  'PACKED'   : "'packed'",
+    'INTEGER'  : "'integer'", 'REAL'  : "'real'",  'BOOLEAN'  : "'boolean'",
+    'CHAR'     : "'char'", 'STRING'   : "'string'",
+    'ID'       : 'un identificador',
+    'NUMBER'   : 'un número',
+    'CHARCONST': 'una cadena/char',
+    '$end'     : 'fin de archivo',
+}
+
+def _esperados():
+    """Consulta las tablas LALR para saber qué tokens acepta el estado actual."""
+    try:
+        accs = parser.action[parser.state]
+        return [t for t in accs if t != 'error']
+    except Exception:
+        return []
+
+def _formato_esperados(lista):
+    legibles = sorted(set(_NOMBRES.get(t, f"'{t}'") for t in lista))
+    if not legibles:
+        return "token válido"
+    if len(legibles) == 1:
+        return legibles[0]
+    return ", ".join(legibles[:-1]) + " o " + legibles[-1]
 
 # ==============================================================
 #   PROGRAMA
@@ -15,8 +81,6 @@ def p_program(p):
 
 # ==============================================================
 #   BLOQUE PRINCIPAL
-#   Un bloque puede tener (en orden): label, const, type, var,
-#   declaraciones de subprogramas, y el cuerpo (begin...end)
 # ==============================================================
 
 def p_block(p):
@@ -25,7 +89,6 @@ def p_block(p):
 
 # ==============================================================
 #   SECCIÓN LABEL  (puede estar vacía)
-#   label 1, 2, 3;
 # ==============================================================
 
 def p_label_part_1(p):
@@ -112,12 +175,20 @@ def p_var_declaration_list_2(p):
     'var_declaration_list : var_declaration'
     pass
 
-# Una declaración de variable: x, y, z : integer;
 def p_var_declaration(p):
     'var_declaration : id_list COLON type_specifier SEMICOLON'
     pass
 
-# Lista de identificadores separados por comas: a, b, c
+# Recuperación: falta ';' al final de una declaración de variable.
+# El token 'error' absorbe lo inesperado y sincroniza en el siguiente ';'.
+def p_var_declaration_error(p):
+    'var_declaration : id_list COLON type_specifier error'
+    linea = p.lexer.lineno
+    msg = f"línea {linea}: falta ';' al final de la declaración de variable"
+    errores.append(msg)
+    print(f"  ERROR — {msg}")
+    parser.errok()
+
 def p_id_list_1(p):
     'id_list : id_list COMMA ID'
     pass
@@ -127,8 +198,7 @@ def p_id_list_2(p):
     pass
 
 # ==============================================================
-#   TIPOS  (integer, real, boolean, char, string,
-#           array, record, set, file, packed)
+#   TIPOS
 # ==============================================================
 
 def p_type_specifier_integer(p):
@@ -151,37 +221,30 @@ def p_type_specifier_string(p):
     'type_specifier : STRING'
     pass
 
-# array [1..10] of integer
 def p_type_specifier_array(p):
     'type_specifier : ARRAY LBR NUMBER RANGE NUMBER RBR OF type_specifier'
     pass
 
-# record  field1: type1; field2: type2; ... end
 def p_type_specifier_record(p):
     'type_specifier : RECORD field_list END'
     pass
 
-# set of type
 def p_type_specifier_set(p):
     'type_specifier : SET OF type_specifier'
     pass
 
-# file of type
 def p_type_specifier_file(p):
     'type_specifier : FILE OF type_specifier'
     pass
 
-# file sin tipo (archivo de texto genérico)
 def p_type_specifier_file_plain(p):
     'type_specifier : FILE'
     pass
 
-# packed array / packed record / packed set / packed file
 def p_type_specifier_packed(p):
     'type_specifier : PACKED type_specifier'
     pass
 
-# Identificador como tipo (tipos definidos por el usuario)
 def p_type_specifier_id(p):
     'type_specifier : ID'
     pass
@@ -207,8 +270,7 @@ def p_field_declaration(p):
     pass
 
 # ==============================================================
-#   DECLARACIONES DE SUBPROGRAMAS (FUNCTION y PROCEDURE)
-#   Pueden ser cero o muchas, antes del begin principal
+#   DECLARACIONES DE SUBPROGRAMAS
 # ==============================================================
 
 def p_subprogram_declarations_1(p):
@@ -227,23 +289,14 @@ def p_subprogram_declaration_procedure(p):
     'subprogram_declaration : procedure_declaration'
     pass
 
-# --------------------------------------------------------------
-#   FUNCTION:  function nombre(params): tipo; var... begin...end;
-# --------------------------------------------------------------
-
 def p_function_declaration(p):
     'function_declaration : FUNCTION ID LPAR params RPAR COLON type_specifier SEMICOLON subblock SEMICOLON'
     pass
-
-# --------------------------------------------------------------
-#   PROCEDURE: procedure nombre(params); var... begin...end;
-# --------------------------------------------------------------
 
 def p_procedure_declaration(p):
     'procedure_declaration : PROCEDURE ID LPAR params RPAR SEMICOLON subblock SEMICOLON'
     pass
 
-# Sub-bloque: sección label + var opcionales + cuerpo
 def p_subblock(p):
     'subblock : label_part var_part compound_stmt'
     pass
@@ -268,13 +321,12 @@ def p_param_list_2(p):
     'param_list : param'
     pass
 
-# num: integer
 def p_param(p):
     'param : id_list COLON type_specifier'
     pass
 
 # ==============================================================
-#   CUERPO:  begin  sentencias  end
+#   CUERPO: begin  sentencias  end
 # ==============================================================
 
 def p_compound_stmt(p):
@@ -288,6 +340,16 @@ def p_statement_list_1(p):
 def p_statement_list_2(p):
     'statement_list : statement'
     pass
+
+# Recuperación: sentencia malformada dentro de un bloque begin...end.
+# Descarta tokens hasta el siguiente ';' y continúa con la lista.
+def p_statement_list_error(p):
+    'statement_list : statement_list SEMICOLON error'
+    linea = p.lexer.lineno
+    msg = f"línea {linea}: sentencia inválida, se omite hasta el siguiente ';'"
+    errores.append(msg)
+    print(f"  ERROR — {msg}")
+    parser.errok()
 
 # ==============================================================
 #   SENTENCIAS
@@ -309,17 +371,9 @@ def p_statement(p):
     '''
     pass
 
-# --------------------------------------------------------------
-#   ASIGNACIÓN:   variable := expresion
-# --------------------------------------------------------------
-
 def p_assignment_stmt(p):
     'assignment_stmt : variable ASSIGN expression'
     pass
-
-# --------------------------------------------------------------
-#   IF / IF-ELSE
-# --------------------------------------------------------------
 
 def p_if_stmt_1(p):
     'if_stmt : IF expression THEN statement'
@@ -329,17 +383,9 @@ def p_if_stmt_2(p):
     'if_stmt : IF expression THEN statement ELSE statement'
     pass
 
-# --------------------------------------------------------------
-#   WHILE
-# --------------------------------------------------------------
-
 def p_while_stmt(p):
     'while_stmt : WHILE expression DO statement'
     pass
-
-# --------------------------------------------------------------
-#   FOR
-# --------------------------------------------------------------
 
 def p_for_stmt_1(p):
     'for_stmt : FOR ID ASSIGN expression TO expression DO statement'
@@ -349,22 +395,9 @@ def p_for_stmt_2(p):
     'for_stmt : FOR ID ASSIGN expression DOWNTO expression DO statement'
     pass
 
-# --------------------------------------------------------------
-#   REPEAT ... UNTIL
-# --------------------------------------------------------------
-
 def p_repeat_stmt(p):
     'repeat_stmt : REPEAT statement_list UNTIL expression'
     pass
-
-# --------------------------------------------------------------
-#   CASE
-#   case expresion of
-#     valor1 : sentencia;
-#     valor2 : sentencia;
-#     else     sentencia     (rama else opcional)
-#   end
-# --------------------------------------------------------------
 
 def p_case_stmt_1(p):
     'case_stmt : CASE expression OF case_list END'
@@ -382,7 +415,6 @@ def p_case_list_2(p):
     'case_list : case_element'
     pass
 
-# Un elemento de case: valor (o lista de valores) : sentencia ;
 def p_case_element(p):
     'case_element : case_label_list COLON statement SEMICOLON'
     pass
@@ -395,27 +427,13 @@ def p_case_label_list_2(p):
     'case_label_list : literal'
     pass
 
-# --------------------------------------------------------------
-#   GOTO
-#   goto <etiqueta numérica>
-# --------------------------------------------------------------
-
 def p_goto_stmt(p):
     'goto_stmt : GOTO NUMBER'
     pass
 
-# --------------------------------------------------------------
-#   Sentencia etiquetada:  <número> : sentencia
-# --------------------------------------------------------------
-
 def p_labeled_stmt(p):
     'labeled_stmt : NUMBER COLON statement'
     pass
-
-# --------------------------------------------------------------
-#   WITH
-#   with registro do sentencia
-# --------------------------------------------------------------
 
 def p_with_stmt(p):
     'with_stmt : WITH variable_list DO statement'
@@ -429,10 +447,6 @@ def p_variable_list_2(p):
     'variable_list : variable'
     pass
 
-# --------------------------------------------------------------
-#   LLAMADA A PROCEDIMIENTO:  nombre(args)  o  nombre  (sin args)
-# --------------------------------------------------------------
-
 def p_procedure_call_stmt_1(p):
     'procedure_call_stmt : ID LPAR args RPAR'
     pass
@@ -442,7 +456,7 @@ def p_procedure_call_stmt_2(p):
     pass
 
 # ==============================================================
-#   VARIABLE (para el lado izquierdo de asignaciones)
+#   VARIABLE
 # ==============================================================
 
 def p_variable_simple(p):
@@ -453,7 +467,6 @@ def p_variable_array(p):
     'variable : ID LBR expression RBR'
     pass
 
-# Acceso a campo de record:  registro.campo
 def p_variable_field(p):
     'variable : variable DOT ID'
     pass
@@ -470,7 +483,6 @@ def p_expression_simple(p):
     'expression : simple_expression'
     pass
 
-# Operador IN:  expresion IN set_constructor
 def p_expression_in(p):
     'expression : simple_expression IN set_constructor'
     pass
@@ -525,7 +537,6 @@ def p_factor_charconst(p):
     'factor : CHARCONST'
     pass
 
-# NIL (puntero nulo)
 def p_factor_nil(p):
     'factor : NIL'
     pass
@@ -546,13 +557,12 @@ def p_factor_not(p):
     'factor : NOT factor'
     pass
 
-# Constructor de SET:  [1, 2, 3..5, x]
 def p_factor_set(p):
     'factor : set_constructor'
     pass
 
 # ==============================================================
-#   CONSTRUCTOR DE SET   [ elem, elem, ... ]
+#   CONSTRUCTOR DE SET
 # ==============================================================
 
 def p_set_constructor_1(p):
@@ -571,7 +581,6 @@ def p_set_element_list_2(p):
     'set_element_list : set_element'
     pass
 
-# Un elemento puede ser un valor simple o un rango  a..b
 def p_set_element_range(p):
     'set_element : expression RANGE expression'
     pass
@@ -581,7 +590,7 @@ def p_set_element_single(p):
     pass
 
 # ==============================================================
-#   ARGUMENTOS DE LLAMADA A FUNCIÓN/PROCEDIMIENTO
+#   ARGUMENTOS
 # ==============================================================
 
 def p_args_1(p):
@@ -601,7 +610,7 @@ def p_args_list_2(p):
     pass
 
 # ==============================================================
-#   LITERALES  (usados en const y expresiones)
+#   LITERALES
 # ==============================================================
 
 def p_literal_number(p):
@@ -626,10 +635,18 @@ def p_empty(p):
 
 def p_error(p):
     if VERBOSE:
+        esperado_str = _formato_esperados(_esperados())
         if p is not None:
-            print(f"ERROR SINTÁCTICO en línea {p.lexer.lineno}: no se esperaba el token '{p.value}'")
+            linea      = p.lexer.lineno
+            encontrado = _NOMBRES.get(p.type, f"'{p.value}'")
+            msg = f"línea {linea}: se esperaba {esperado_str}, se encontró {encontrado}"
         else:
-            print("ERROR SINTÁCTICO: fin de archivo inesperado")
+            msg = f"fin de archivo inesperado: se esperaba {esperado_str}"
+        errores.append(msg)
+        print(f"  ERROR — {msg}")
+        if p is not None:
+            parser.errok()   # marca el error como manejado
+            parser.token()   # descarta el token problemático y avanza al siguiente
     else:
         raise Exception('syntax', 'error')
 
@@ -645,7 +662,10 @@ if __name__ == '__main__':
     else:
         fin = 'input.pas'
 
-    f = open(fin, 'r')
-    data = f.read()
+    errores.clear()
+
+    with open(fin, 'r') as f:
+        data = f.read()
+
     parser.parse(data, lexer=pascal_lexer.lexer, tracking=True)
-    print("\n✓ El parser reconoció correctamente el programa Pascal")
+    imprimir_reporte()
