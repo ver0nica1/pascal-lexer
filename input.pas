@@ -2,14 +2,14 @@ PROGRAM Factorial;
 
 Var
   n        : INTEGER;
-  resultado: integer
+  resultado: integer;
   mensaje  : STRING;
 
 (* Funcion que calcula el factorial de un numero *)
 FUNCTION calcFactorial(num: integer): INTEGER;   
 Var
   acum: integer;
-  j   : integer
+  j   : integer;
 Begin
   acum := 1;
   j    := 1;
@@ -35,7 +35,7 @@ BEGIN
   End
   else
   begin
-    resultado := calcFactorial(n)
+    resultado := calcFactorial(n);
   end;
   
   WriteLn(mensaje);
