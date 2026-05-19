@@ -9,11 +9,22 @@ Compilador de subconjunto Pascal desarrollado en Python con PLY (Python Lex-Yacc
 ```
 .
 ├── lexer.py          # Analizador léxico
-├── parser.py         # Analizador sintáctico (LALR(1))
-├── semantico.py      # Analizador semántico
-├── test.py           # Punto de entrada principal
-└── input.pas         # Archivo Pascal de prueba (reemplazar con el propio)
+├── parser.py         # Analizador sintáctico (LALR(1)) — sin acciones semánticas
+├── parser_sem.py     # Parser con acciones semánticas integradas
+├── semantico.py      # Clases semánticas: Symbol, SymbolTable, SemanticAnalyzer
+├── test.py           # Punto de entrada principal (3 fases)
+└── input.pas         # Archivo Pascal de prueba
 ```
+
+### Archivos principales
+
+| Archivo | Descripción |
+|---|---|
+| `lexer.py` | Tokenizador con PLY-Lex. Reconoce palabras reservadas, literales, operadores y símbolos de Pascal. |
+| `parser.py` | Parser LALR(1) puro con `pass` en cada regla. Solo verifica estructura gramatical. |
+| `parser_sem.py` | Parser LALR(1) con acciones semánticas. Importa las clases de `semantico.py` y construye la tabla de símbolos durante el parseo. |
+| `semantico.py` | Clases puras sin dependencias del parser: `Symbol`, `SymbolTable`, `SemanticAnalyzer`. Contiene toda la lógica de validación semántica. |
+| `test.py` | Orquestador que ejecuta las 3 fases en orden y muestra el reporte unificado. |
 
 ---
 
@@ -30,14 +41,16 @@ pip install ply
 
 ## 🚀 Uso
 
+### Ejecutar las 3 fases (recomendado)
+
 ```bash
 python test.py <archivo.pas>
 ```
 
-**Ejemplo:**
+### Ejecutar solo el análisis semántico
 
 ```bash
-python test.py factorial.pas
+python semantico.py <archivo.pas>
 ```
 
 Si no se pasa un archivo, el compilador busca `input.pas` en el directorio actual por defecto.
@@ -75,34 +88,35 @@ Parser LALR(1) construido con PLY que verifica la estructura gramatical del prog
 
 ---
 
-### [ 3 ] Análisis semántico — `semantico.py`
+### [ 3 ] Análisis semántico — `parser_sem.py` + `semantico.py`
 
-Opera en **dos pasadas** sobre la lista de tokens:
+El análisis semántico se divide en dos archivos para mantener el código limpio:
 
-**Primera pasada — recolección de declaraciones:**
-Recorre el código y construye la tabla de símbolos registrando variables, constantes, tipos, funciones y procedimientos con sus parámetros y tipos de retorno.
+- **`semantico.py`** contiene las clases puras:
+  - `Symbol` — representa un símbolo (variable, constante, función, etc.)
+  - `SymbolTable` — gestiona ámbitos (scopes) y la tabla de símbolos
+  - `SemanticAnalyzer` — métodos `visit_*` con toda la lógica de validación
 
-**Segunda pasada — verificación de uso:**
-Recorre nuevamente el código verificando la corrección semántica.
+- **`parser_sem.py`** contiene las reglas gramaticales con acciones semánticas que llaman a los métodos del `SemanticAnalyzer` durante el parseo.
 
 #### Errores detectados
 
 | Error | Descripción |
 |---|---|
-| Redeclaración | Variable, función o procedimiento declarado más de una vez |
+| Redeclaración | Variable, función o procedimiento declarado más de una vez en el mismo ámbito |
 | Variable sin declarar | Uso de un identificador que no aparece en ninguna sección `var` |
 | Incompatibilidad de tipos en asignación | `contador := 'texto'` cuando `contador` es `integer` |
-| Argumentos incorrectos | Llamada con distinto número de argumentos del esperado |
+| Operación con tipos inválidos | Operación aritmética con operandos no numéricos |
+| Condición no booleana | `if`, `while`, `repeat` con expresión que no es `boolean` |
+| Argumentos incorrectos | Llamada con distinto número o tipo de argumentos del esperado |
 | Subprograma no declarado | Llamada a función o procedimiento inexistente |
-| Variable de control inválida | Variable de `for` no declarada o de tipo distinto a `integer`/`char` |
+| Tipo no declarado | Uso de un identificador como tipo que no fue definido |
 
 #### Advertencias generadas
 
 | Advertencia | Descripción |
 |---|---|
-| Variable no usada | Declarada en `var` pero nunca referenciada en el cuerpo |
-| Función no llamada | Declarada pero nunca invocada |
-| Procedimiento no llamado | Declarado pero nunca invocado |
+| Variable sin inicializar | Se usa una variable `var` antes de recibir una asignación |
 
 #### Compatibilidad de tipos soportada
 
@@ -112,13 +126,13 @@ Recorre nuevamente el código verificando la corrección semántica.
 | `real` | `real`, `integer` (promoción implícita) |
 | `boolean` | `boolean` |
 | `char` | `char` |
-| `string` | `string`, `char` |
+| `string` | `string` |
 
 #### Built-ins reconocidos
 
-El analizador conoce los procedimientos y funciones estándar de Pascal y no los reporta como no declarados:
+El analizador conoce los procedimientos estándar de Pascal y no los reporta como no declarados:
 
-`writeln`, `write`, `readln`, `read`, `new`, `dispose`, `length`, `copy`, `concat`, `pos`, `chr`, `ord`, `abs`, `sqr`, `sqrt`, `trunc`, `round`, `succ`, `pred`, `odd`, `eof`, `eoln`, `reset`, `rewrite`, `close`, `upcase`, `lowercase`, `str`, `val`
+`writeln`, `write`, `readln`, `read`
 
 ---
 
@@ -127,71 +141,56 @@ El analizador conoce los procedimientos y funciones estándar de Pascal y no los
 ```
 ============================================================
   COMPILADOR PASCAL
-  Archivo : factorial.pas
-  Tokens  : 87    Líneas: 45
+  Archivo : input.pas
+  Tokens  : 146    Líneas: 46
 ============================================================
 
-           [ 1 ] ANÁLISIS LÉXICO
+                   [ 1 ] ANÁLISIS LÉXICO
 ------------------------------------------------------------
   [OK] Sin errores léxicos.
 
-         [ 2 ] ANÁLISIS SINTÁCTICO
+                 [ 2 ] ANÁLISIS SINTÁCTICO
 ------------------------------------------------------------
   [OK] Sin errores sintácticos.
 
-          [ 3 ] ANÁLISIS SEMÁNTICO
+                  [ 3 ] ANÁLISIS SEMÁNTICO
 ------------------------------------------------------------
-  [OK] Sin errores semánticos.
+  [ERROR] 11 error(es) semántico(s) encontrado(s):
 
-           [ 4 ] TABLA DE SÍMBOLOS
+    1.   ERROR SEMÁNTICO (línea 15): Operación aritmética '+' requiere operandos numéricos, pero se tienen 'integer' y 'string'
+    2.   ERROR SEMÁNTICO (línea 26): 'n' no fue declarado
+    ...
+
+  [WARNING] 1 advertencia(s):
+
+    1.   ADVERTENCIA (línea 20): 'h' se usa sin haber sido inicializada
+
+                  [ 4 ] TABLA DE SÍMBOLOS
 ------------------------------------------------------------
+  NOMBRE             TIPO               CATEGORÍA    ÁMBITO           LÍNEA   INIC
+  --------------------------------------------------------------------------------
 
-  Variables globales: 3
-    - n         : integer [✓ usada] (línea 4)
-    - resultado : integer [✓ usada] (línea 5)
-    - mensaje   : string  [✓ usada] (línea 6)
+  Ámbito: global (variables)
+  nx                 integer            var          global               4     no
+  resultado          integer            var          global               5     sí
+  mensaje            string             var          global               6     sí
 
-  Constantes: 0
-  Tipos definidos: 0
+  Ámbito: global (funciones)
+  calcFactorial      integer->integer   function     global               9     sí
 
-  Funciones: 1
-    - calcfactorial(num: integer) : integer [✓ usada] (línea 9)
-        var acum : integer [✓ usada] (línea 11)
-        var j    : integer [✓ usada] (línea 12)
+  Ámbito: global (procedimientos)
+  writeln            void(variadic)     procedure    global               0     sí
 
-  Procedimientos: 0
-
-              [ RESUMEN FINAL ]
+                     [ RESUMEN FINAL ]
 ------------------------------------------------------------
   Errores léxicos    : 0
   Errores sintácticos: 0
-  Errores semánticos : 0
-  Advertencias       : 0
+  Errores semánticos : 11
+  Advertencias       : 1
 ------------------------------------------------------------
-  [OK] COMPILACIÓN EXITOSA — el código es correcto.
+  [FALLO] Se encontraron 11 error(es) en total.
 ============================================================
 ```
-
----
-
-## 🧪 Programa de prueba con errores semánticos
-
-El repositorio incluye `prueba_semantica.pas`, un programa Pascal sintácticamente válido diseñado para disparar todos los tipos de errores y advertencias que detecta el analizador semántico:
-
-```bash
-python test.py prueba_semantica.pas
-```
-
-Errores que contiene deliberadamente:
-
-1. Variable `x` declarada dos veces
-2. Función `duplicada` declarada dos veces
-3. Asignación de `string` a variable `integer`
-4. Asignación de `real` a variable `boolean`
-5. Uso de variable `noExiste` sin declarar
-6. Llamada a `sumar` con 3 argumentos (espera 2)
-7. Llamada a `funcionFantasma` (no declarada)
-8. Variable de control `k` en `for` sin declarar
 
 ---
 

@@ -7,9 +7,13 @@ Ejecuta los tres análisis en orden:
 """
 
 import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 import lexer as pascal_lexer
 import parser as pascal_parser
 import semantico as pascal_semantico
+import parser_sem
 
 
 SEP  = "=" * 60
@@ -26,7 +30,6 @@ def leer_archivo(filename):
 
 
 def analisis_lexico(data):
-    """Tokeniza el archivo y devuelve (tokens, errores, num_lineas)."""
     pascal_lexer.lexer_errors = []
     pascal_lexer.lexer.lineno = 1
     pascal_lexer.lexer.input(data)
@@ -43,7 +46,6 @@ def analisis_lexico(data):
 
 
 def analisis_sintactico(data):
-    """Parsea el archivo y devuelve lista de errores sintácticos."""
     pascal_lexer.lexer_errors = []
     pascal_lexer.lexer.lineno = 1
     pascal_parser.errors_list.clear()
@@ -51,14 +53,17 @@ def analisis_sintactico(data):
     return list(pascal_lexer.lexer_errors) + list(pascal_parser.errors_list)
 
 
-def analisis_semantico(tokens):
-    """Ejecuta el analizador semántico completo y devuelve el objeto analizador.
-    analizar() internamente hace: recolectar → reset flags → verificar → advertencias.
-    """
+def analisis_semantico(data):
+    pascal_lexer.lexer_errors = []
     pascal_lexer.lexer.lineno = 1
-    analizador = pascal_semantico.AnalizadorSemantico(tokens)
-    analizador.analizar()
-    return analizador
+    parser_sem.syntax_errors.clear()
+    parser_sem.sem.errors.clear()
+    parser_sem.sem.warnings.clear()
+    parser_sem.sem.table = pascal_semantico.SymbolTable()
+    parser_sem.sem._current_function = None
+    pascal_semantico.register_builtins(parser_sem.sem)
+    parser_sem.parser.parse(data, lexer=pascal_lexer.lexer, tracking=True)
+    return parser_sem.sem
 
 
 def imprimir_encabezado(filename, num_tokens, num_lineas):
@@ -91,9 +96,9 @@ def imprimir_seccion_sintactica(errores):
             print(f"    {i}. {e}")
 
 
-def imprimir_seccion_semantica(analizador):
-    errores      = analizador.tabla.errores
-    advertencias = analizador.tabla.advertencias
+def imprimir_seccion_semantica(sem):
+    errores      = sem.errors
+    advertencias = sem.warnings
 
     print(f"\n{'[ 3 ] ANÁLISIS SEMÁNTICO':^60}")
     print(SEP2)
@@ -111,59 +116,56 @@ def imprimir_seccion_semantica(analizador):
                 print(f"    {i}. {a}")
 
 
-def imprimir_tabla_simbolos(analizador):
-    tabla = analizador.tabla
+def imprimir_tabla_simbolos(sem):
+    tabla = sem.table
 
     print(f"\n{'[ 4 ] TABLA DE SÍMBOLOS':^60}")
     print(SEP2)
+    print(f"  {'NOMBRE':<18} {'TIPO':<18} {'CATEGORÍA':<12} {'ÁMBITO':<16} {'LÍNEA':>5}  {'INIC':>5}")
+    print("  " + "-" * 80)
 
-    # Variables globales
-    vars_globales = tabla.scopes[0]
-    print(f"\n  Variables globales: {len(vars_globales)}")
+    vars_globales = {k: v for k, v in tabla._scopes[0].items() if v.kind == 'var'}
+    print(f"\n  Ámbito: global (variables)")
     for nombre, info in vars_globales.items():
-        estado = "✓ usada" if info.get('usada') else "✗ no usada"
-        print(f"    - {nombre} : {info['tipo']} [{estado}] (línea {info['linea']})")
+        init_str = "sí" if info.initialized else "no"
+        print(f"  {nombre:<18} {info.type:<18} {info.kind:<12} {info.scope:<16} {info.line:>5}  {init_str:>5}")
 
-    # Constantes
-    print(f"\n  Constantes: {len(tabla.constantes)}")
-    for nombre, info in tabla.constantes.items():
-        print(f"    - {nombre} : {info['tipo']} (línea {info['linea']})")
+    constantes = {k: v for k, v in tabla._scopes[0].items() if v.kind == 'const'}
+    if constantes:
+        print(f"\n  Ámbito: global (constantes)")
+        for nombre, info in constantes.items():
+            print(f"  {nombre:<18} {info.type:<18} {info.kind:<12} {info.scope:<16} {info.line:>5}  {'sí':>5}")
 
-    # Tipos
-    print(f"\n  Tipos definidos: {len(tabla.tipos)}")
-    for nombre, info in tabla.tipos.items():
-        print(f"    - {nombre} = {info['definicion']} (línea {info['linea']})")
+    tipos = {k: v for k, v in tabla._scopes[0].items() if v.kind == 'type'}
+    if tipos:
+        print(f"\n  Ámbito: global (tipos)")
+        for nombre, info in tipos.items():
+            print(f"  {nombre:<18} {info.type:<18} {info.kind:<12} {info.scope:<16} {info.line:>5}  {'sí':>5}")
 
-    # Funciones
-    print(f"\n  Funciones: {len(tabla.funciones)}")
-    for nombre, info in tabla.funciones.items():
-        estado     = "✓ usada" if info['usada'] else "✗ no usada"
-        params_str = ', '.join(f"{p['nombre']}: {p['tipo']}" for p in info['params'])
-        print(f"    - {nombre}({params_str}) : {info['tipo']} [{estado}] (línea {info['linea']})")
-        vars_loc = tabla.vars_locales.get(nombre.lower(), {})
-        for vnom, vinfo in vars_loc.items():
-            info_g   = tabla.scopes[0].get(vnom)
-            usada    = info_g['usada'] if info_g else vinfo.get('usada', False)
-            estado_v = "✓ usada" if usada else "✗ no usada"
-            print(f"        var {vnom} : {vinfo['tipo']} [{estado_v}] (línea {vinfo['linea']})")
+    funciones = [s for s in tabla._all_symbols if s.kind == 'function']
+    if funciones:
+        print(f"\n  Ámbito: global (funciones)")
+        for info in funciones:
+            extra = ""
+            if info.return_type:
+                extra = f"->{info.return_type}"
+            elif info.params:
+                extra = f"({','.join(str(p) for p in info.params)})"
+            tipo_str = (info.type + extra)[:17]
+            print(f"  {info.name:<18} {tipo_str:<18} {info.kind:<12} {info.scope:<16} {info.line:>5}  {'sí':>5}")
 
-    # Procedimientos
-    print(f"\n  Procedimientos: {len(tabla.procedimientos)}")
-    for nombre, info in tabla.procedimientos.items():
-        estado     = "✓ usado" if info['usado'] else "✗ no usado"
-        params_str = ', '.join(f"{p['nombre']}: {p['tipo']}" for p in info['params'])
-        print(f"    - {nombre}({params_str}) [{estado}] (línea {info['linea']})")
-        vars_loc = tabla.vars_locales.get(nombre.lower(), {})
-        for vnom, vinfo in vars_loc.items():
-            info_g   = tabla.scopes[0].get(vnom)
-            usada    = info_g['usada'] if info_g else vinfo.get('usada', False)
-            estado_v = "✓ usada" if usada else "✗ no usada"
-            print(f"        var {vnom} : {vinfo['tipo']} [{estado_v}] (línea {vinfo['linea']})")
+    procedimientos = [s for s in tabla._all_symbols if s.kind == 'procedure']
+    if procedimientos:
+        print(f"\n  Ámbito: global (procedimientos)")
+        for info in procedimientos:
+            params_str = ','.join(str(p) for p in info.params)
+            tipo_str = (info.type + f"({params_str})")[:17]
+            print(f"  {info.name:<18} {tipo_str:<18} {info.kind:<12} {info.scope:<16} {info.line:>5}  {'sí':>5}")
 
 
-def imprimir_resumen(err_lex, err_sin, analizador):
-    err_sem = analizador.tabla.errores
-    adv_sem = analizador.tabla.advertencias
+def imprimir_resumen(err_lex, err_sin, sem):
+    err_sem = sem.errors
+    adv_sem = sem.warnings
     total   = len(err_lex) + len(err_sin) + len(err_sem)
 
     print(f"\n{'[ RESUMEN FINAL ]':^60}")
@@ -180,21 +182,17 @@ def imprimir_resumen(err_lex, err_sin, analizador):
     print(SEP)
 
 
-# ==============================================================
-#   MAIN
-# ==============================================================
-
 if __name__ == '__main__':
     filename = sys.argv[1] if len(sys.argv) > 1 else 'input.pas'
     data     = leer_archivo(filename)
 
     tokens, err_lex, num_lineas = analisis_lexico(data)
     err_sin                     = analisis_sintactico(data)
-    analizador                  = analisis_semantico(tokens)
+    sem                         = analisis_semantico(data)
 
     imprimir_encabezado(filename, len(tokens), num_lineas)
     imprimir_seccion_lexica(err_lex)
     imprimir_seccion_sintactica(err_sin)
-    imprimir_seccion_semantica(analizador)
-    imprimir_tabla_simbolos(analizador)
-    imprimir_resumen(err_lex, err_sin, analizador)
+    imprimir_seccion_semantica(sem)
+    imprimir_tabla_simbolos(sem)
+    imprimir_resumen(err_lex, err_sin, sem)
